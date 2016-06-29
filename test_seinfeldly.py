@@ -1,21 +1,20 @@
 import os
+import unittest
+
+os.environ['DATABASE_URL'] = 'postgresql://localhost/seinfeldly_test'
+
 import seinfeldly
 import url_encoder
-import unittest
-import tempfile
 
-class UrlpyTestCase(unittest.TestCase):
+class SeinfeldlyTestCase(unittest.TestCase):
     def setUp(self):
-        self.db_fd, seinfeldly.app.config['DATABASE'] = tempfile.mkstemp()
-        seinfeldly.app.config['TESTING'] = True
         self.app = seinfeldly.app.test_client()
 
         with seinfeldly.app.app_context():
-            seinfeldly.init_db()
+            seinfeldly.db.create_all()
 
     def tearDown(self):
-        os.close(self.db_fd)
-        os.unlink(seinfeldly.app.config['DATABASE'])
+        seinfeldly.db.drop_all()
 
     def post(self, long):
         return self.app.post('/add', data={'long': long})
@@ -28,12 +27,12 @@ class UrlpyTestCase(unittest.TestCase):
     def test_create_shortlink(self):
         """Posting a url returns the created shortlink."""
         rv = self.post('https://www.seinfeld.com')
-        assert 'localhost:5000/TheStakeOut is now short for https://www.seinfeld.com' in rv.data
+        assert 'https://seinfeldly.herokuapp.com/TheStakeOut is now short for https://www.seinfeld.com' in rv.data
 
     def test_redirects_shortlink(self):
         """Visiting a shortlink redirects to its corresponding long url."""
         rv = self.post('https://www.seinfeld.com')
-        assert 'localhost:5000/TheStakeOut is now short for https://www.seinfeld.com' in rv.data
+        assert 'https://seinfeldly.herokuapp.com/TheStakeOut is now short for https://www.seinfeld.com' in rv.data
         rv = self.app.get('/TheStakeOut')
         assert rv.status_code == 302
         assert rv.location == 'https://www.seinfeld.com'

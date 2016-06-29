@@ -1,46 +1,28 @@
+from flask import Flask, request, redirect, render_template
+from flask_sqlalchemy import SQLAlchemy
 import os
-import sqlite3
-from flask import Flask, request, redirect, g, render_template, url_for
 import url_encoder
 
 app = Flask(__name__)
 app.config.from_object(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
-app.config.update(dict(
-    DATABASE=os.path.join(app.root_path, 'seinfeldly.db'),
-    SECRET_KEY='development key',
-    USERNAME='admin',
-    PASSWORD='default'
-))
-app.config.from_envvar('URLPY_SETTINGS', silent=True)
+class Url(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    long = db.Column(db.String, unique=True)
+    short = db.Column(db.String)
 
-def connect_db():
-    """Connects to the database."""
-    rv = sqlite3.connect(app.config['DATABASE'])
-    rv.row_factory = sqlite3.Row
-    return rv
+    def __init__(self, long):
+        self.long = long
+        self.short = None
 
-def get_db():
-    """Opens a new database connection if one is not present."""
-    if not hasattr(g, 'sqlite_db'):
-        g.sqlite_db = connect_db()
-    return g.sqlite_db
-
-def init_db():
-    db = get_db()
-    with app.open_resource('schema.sql', mode='r') as f:
-        db.cursor().executescript(f.read())
-    db.commit()
-
-@app.cli.command('initdb')
-def initdb_command():
-    init_db()
-    print 'Initialized database'
-
-@app.teardown_appcontext
-def close_db(error):
-    if hasattr(g, 'sqlite_db'):
-        g.sqlite_db.close()
+    def create_short(self):
+        db.session.add(self)
+        db.session.commit()
+        self.short = url_encoder.encode(self.id)
+        db.session.commit()
 
 @app.route('/')
 def index():
@@ -48,22 +30,20 @@ def index():
 
 @app.route('/add', methods=['POST'])
 def add():
-    db = get_db()
     long = request.form['long']
-    cur = db.execute('insert into urls (long) values(?)', [long])
-    id = cur.lastrowid
-    short = url_encoder.encode(id)
-    db.execute('update urls set short=? where id=?', [short, id])
-    db.commit()
-    return '{} is now short for {}.'.format('localhost:5000/' + short, long)
+    url = Url.query.filter_by(long=long).first()
+
+    if url == None:
+        url = Url(long)
+        url.create_short()
+
+    return '{} is now short for {}.'.format('https://seinfeldly.herokuapp.com/' + url.short, url.long)
 
 @app.route('/<short>', methods=['GET'])
 def redirect_from_short(short):
-    db = get_db()
     id = url_encoder.decode(short)
-    cur = db.execute('select long from urls where id=?', [id])
-    url =  cur.fetchone()
+    url = Url.query.get(id)
     if url:
-        return redirect(url[0])
-    else:
-        return 'No url found'
+        return redirect(url.long)
+
+    return 'No url found'
