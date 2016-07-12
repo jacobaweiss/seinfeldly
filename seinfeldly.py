@@ -37,7 +37,7 @@ def add():
         url = Url(long)
         url.create_short()
 
-    return '{} is now short for {}.'.format('https://seinfeldly.herokuapp.com/' + url.short, url.long)
+    return render_template('index.html', short=url.short, long=url.long)
 
 @app.route('/<short>', methods=['GET'])
 def redirect_from_short(short):

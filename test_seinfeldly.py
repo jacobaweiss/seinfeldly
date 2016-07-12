@@ -27,12 +27,19 @@ class SeinfeldlyTestCase(unittest.TestCase):
     def test_create_shortlink(self):
         """Posting a url returns the created shortlink."""
         rv = self.post('https://www.seinfeld.com')
-        assert 'https://seinfeldly.herokuapp.com/TheStakeOut is now short for https://www.seinfeld.com' in rv.data
+        assert '<a href="TheStakeOut">TheStakeOut</a> is now short for <a href="https://www.seinfeld.com">https://www.seinfeld.com</a>!' in rv.data
+
+    def test_already_created_shortlink(self):
+        """Posting an already-existing url returns the already-created shortlink"""
+        rv = self.post('https://www.seinfeld.com')
+        assert '<a href="TheStakeOut">TheStakeOut</a> is now short for <a href="https://www.seinfeld.com">https://www.seinfeld.com</a>!' in rv.data
+        rv = self.post('https://www.seinfeld.com')
+        assert '<a href="TheStakeOut">TheStakeOut</a> is now short for <a href="https://www.seinfeld.com">https://www.seinfeld.com</a>!' in rv.data
 
     def test_redirects_shortlink(self):
         """Visiting a shortlink redirects to its corresponding long url."""
         rv = self.post('https://www.seinfeld.com')
-        assert 'https://seinfeldly.herokuapp.com/TheStakeOut is now short for https://www.seinfeld.com' in rv.data
+        assert '<a href="TheStakeOut">TheStakeOut</a> is now short for <a href="https://www.seinfeld.com">https://www.seinfeld.com</a>!' in rv.data
         rv = self.app.get('/TheStakeOut')
         assert rv.status_code == 302
         assert rv.location == 'https://www.seinfeld.com'
