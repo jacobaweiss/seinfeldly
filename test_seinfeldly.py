@@ -44,6 +44,14 @@ class SeinfeldlyTestCase(unittest.TestCase):
         assert rv.status_code == 302
         assert rv.location == 'https://www.seinfeld.com'
 
+    def test_redirects_shortlink_without_http_scheme(self):
+        """Visiting a shortlink generated without http or https redirects to its corresponding long url."""
+        rv = self.post('www.seinfeld.com')
+        assert '<a href="TheStakeOut">TheStakeOut</a> is now short for <a href="www.seinfeld.com">www.seinfeld.com</a>!' in rv.data
+        rv = self.app.get('/TheStakeOut')
+        assert rv.status_code == 302
+        assert rv.location == 'http://www.seinfeld.com'
+
     def test_missing_shortlink(self):
         """Visiting a nonexistent shortlink presents a link not found error."""
         rv = self.app.get('/TheStakeOut')

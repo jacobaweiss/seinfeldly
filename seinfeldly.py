@@ -1,5 +1,6 @@
 from flask import Flask, request, redirect, render_template
 from flask_sqlalchemy import SQLAlchemy
+from urlparse import urlparse
 import os
 import url_encoder
 
@@ -43,7 +44,9 @@ def add():
 def redirect_from_short(short):
     id = url_encoder.decode(short)
     url = Url.query.get(id)
-    if url:
-        return redirect(url.long)
-
+    if url is not None:
+        link = url.long
+        if link.find("http://") != 0 and link.find("https://") != 0:
+            link = "http://" + link
+        return redirect(link)
     return 'No url found'
